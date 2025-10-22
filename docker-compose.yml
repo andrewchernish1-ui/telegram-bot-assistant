@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: tgbot_db
+      POSTGRES_USER: tgbot_user
+      POSTGRES_PASSWORD: tgbot_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  bot:
+    build: .
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=tgbot_db
+      - DB_USER=tgbot_user
+      - DB_PASSWORD=tgbot_password
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:
