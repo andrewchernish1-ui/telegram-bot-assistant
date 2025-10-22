@@ -1,22 +1,22 @@
 # Telegram Bot Assistant - Memory Bank
 
 ## Date
-2025-10-22
+2025-10-22 (обновлено)
 
 ## Project Overview
 Полносервисный Telegram-бот помощник для управления контентом канала. Интегрирован с OpenAI (LLM) для генерации идей, постов и отчетов. Использует PostgreSQL для хранения данных, Docker для контейнеризации, GitHub Actions для автоматического деплоя на VPS.
 
 ## Project Status
-Проект полностью реализован согласно оригинальному плану. Код готов к работе. Развертывание на VPS начато, но не завершено из-за технических проблем с Docker Compose и SSH-конфигурацией.
+Проект полностью реализован согласно оригинальному плану. Код готов к работе. После последних исправлений бот стабильно запускается на VPS, команда `/start` работает.
 
-Текущий статус: Бот развернут локально без ошибок, на VPS есть проблемы с запуском контейнеров после очистки системы.
+Текущий статус: Контейнеры PostgreSQL и бота успешно поднимаются на VPS, планировщик и long-polling работают.
 
 ## Architecture
 ### Backend
 - **Language:** Python 3.11
 - **Framework:** Aiogram 3.13.1 для Telegram-ботов
 - **Database:** PostgreSQL 15, SQLAlchemy 2.0.35 с asyncpg
-- **LLM Integration:** OpenAI API (openai==1.54.0)
+- **LLM Integration:** OpenRouter (openai==1.54.0, httpx==0.27.2) с моделью DeepSeek V3 0324 (`deepseek/deepseek-chat`)
 - **ASYNC Tasks:** APScheduler для автоматической публикации и сбора статистики
 - **Configuration:** python-dotenv для управления переменными окружения
 
@@ -79,13 +79,16 @@
 ### Required Environment Variables
 ```
 BOT_TOKEN=<TELEGRAM_BOT_TOKEN>
-LLM_API_KEY=<OPENAI_API_KEY>
+LLM_API_KEY=<OPENROUTER_API_KEY>
 CHANNEL_ID=@your_channel_username
 DB_HOST=localhost
 DB_PORT=5434
 DB_NAME=tgbot_db
 DB_USER=tgbot_user
 DB_PASSWORD=tgbot_password
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # по умолчанию, можно опустить
+OPENROUTER_SITE_URL=<https://your-domain.example>  # опционально
+OPENROUTER_APP_NAME=Telegram Bot Assistant        # опционально
 ```
 
 ### Docker Configuration
@@ -96,7 +99,7 @@ DB_PASSWORD=tgbot_password
 ### GitHub Secrets (Configured)
 - `SSH_PRIVATE_KEY` - Приватный SSH-ключ для подключения к VPS
 - `BOT_TOKEN` - Токен бота
-- `LLM_API_KEY` - API ключ OpenAI
+- `LLM_API_KEY` - API ключ OpenRouter
 - `VPS_HOST=95.215.8.138` - IP VPS
 - `VPS_USER=root` - Пользователь SSH
 
@@ -129,20 +132,21 @@ SSH: Настроен публичный ключ для GitHub Actions
 ## Launch Instructions
 
 ### Local Development
-1. Установить Docker Desktop
-2. `cp .env.example .env` и заполнить реальными данными
-3. `docker-compose up postgres -d`
-4. `pip install -r requirements.txt`
+1. Установить Docker Desktop и Python 3.11+
+2. `cp .env.example .env` и заполнить реальными данными (включая OpenRouter переменные)
+3. `pip install -r requirements.txt`
+4. `docker-compose up postgres -d`
 5. `python bot.py`
 
 ### VPS Deployment
 1. SSH подключение настроено
 2. Код обновлен через Git
 3. VPS готов к запуску
-
 ```
 # На VPS выполнить:
 cd /home/user/telegram-bot-assistant
+git pull
+docker-compose down
 docker-compose up -d --build
 ```
 
@@ -200,6 +204,15 @@ CREATE TABLE posts (
 - Docker images строятся без ошибок
 - База данных запускается и принимает соединения
 - SSH подключение работает
+- После обновления зависимостей (добавлены `pytz==2024.1`, `httpx==0.27.2`) и настройки OpenRouter бот стартует без ошибок
+
+### Recent Updates (2025-10-22)
+- Добавлен `pytz==2024.1` для корректной работы с часовыми поясами
+- Удалены чувствительные токены из `MEMORY_BANK.md`
+- Настроен OpenRouter клиент: базовый URL, дополнительные заголовки, новая модель `deepseek/deepseek-chat`
+- Добавлен `httpx==0.27.2` для совместимости клиента OpenRouter
+- Вызовы генерации идей, постов и отчетов переключены на модель DeepSeek V3 0324 (free)
+- Контейнеры пересобраны, бот на VPS теперь запускается (scheduler + polling)
 
 ## Known Issues
 - SSH ключи требуют пересоздания при смене Secrets
