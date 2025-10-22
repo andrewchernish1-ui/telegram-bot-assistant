@@ -25,7 +25,7 @@ async def generate_ideas(topic: str, goals: str = "обучающий, разв�
 
     try:
         response = openai_client.chat.completions.create(
-            model="deepseek/deepseek-chat"
+            model="deepseek/deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500
         )
