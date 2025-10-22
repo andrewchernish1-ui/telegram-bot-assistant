@@ -25,7 +25,7 @@ async def generate_ideas(topic: str, goals: str = "обучающий, разв�
 
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",  # or other model
+            model="deepseek/deepseek-chat"
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500
         )
@@ -42,7 +42,7 @@ async def generate_post_template(topic: str, format: str) -> str:
 
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="deepseek/deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1000
         )
@@ -55,7 +55,7 @@ async def generate_report(analytics_data: dict) -> str:
 
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="deepseek/deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=600
         )
