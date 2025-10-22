@@ -1,7 +1,24 @@
+import os
+
 import openai
+
 import config
 
-openai_client = openai.OpenAI(api_key=config.config.LLM_API_KEY)
+_openrouter_base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+_referer = os.getenv("OPENROUTER_SITE_URL")
+_app_title = os.getenv("OPENROUTER_APP_NAME")
+
+_default_headers = {}
+if _referer:
+    _default_headers["HTTP-Referer"] = _referer
+if _app_title:
+    _default_headers["X-Title"] = _app_title
+
+openai_client = openai.OpenAI(
+    api_key=config.config.LLM_API_KEY,
+    base_url=_openrouter_base_url,
+    default_headers=_default_headers or None,
+)
 
 async def generate_ideas(topic: str, goals: str = "обучающий, развлекающий, вовлекающий") -> list[str]:
     prompt = f"Предложи 10 идей для постов в Telegram-канале на тему '{topic}'. Учти, что цели постов: {goals}. Формат идей: список с кратким описанием каждой идеи."
