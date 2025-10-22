@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, select
-from sqlalchemy import String, Integer, DateTime, Text, BigInteger
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy import String, Integer, DateTime, Text, BigInteger, select
 from datetime import datetime
 import config
 
