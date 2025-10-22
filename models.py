@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy import String, Integer, DateTime, Text, BigInteger, select
@@ -37,13 +39,14 @@ class Post(Base):
     __tablename__ = 'posts'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    content_plan_id: Mapped[int] = mapped_column(Integer)
+    content_plan_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     message_id: Mapped[int] = mapped_column(BigInteger)  # Telegram message ID
     channel_id: Mapped[int] = mapped_column(BigInteger)  # Telegram channel ID
     published_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     views: Mapped[int] = mapped_column(Integer, nullable=True)
     reactions: Mapped[int] = mapped_column(Integer, nullable=True)
     comments: Mapped[int] = mapped_column(Integer, nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 async def create_tables():
     async with engine.begin() as conn:

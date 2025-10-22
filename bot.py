@@ -49,20 +49,30 @@ async def report_handler(message: Message):
         avg_views = total_views / total_posts if total_posts > 0 else 0
 
         # Get top topics from ContentPlan
-        plan_ids = [post.content_plan_id for post in posts]
-        plans = await session.execute(
-            models.select(models.ContentPlan).where(models.ContentPlan.id.in_(plan_ids))
-        )
-        plans = plans.scalars().all()
-        topics = [plan.topic for plan in plans]
+        topics: list[str] = []
+        plan_ids = [post.content_plan_id for post in posts if post.content_plan_id is not None]
+        if plan_ids:
+            plans = await session.execute(
+                models.select(models.ContentPlan).where(models.ContentPlan.id.in_(plan_ids))
+            )
+            plans = plans.scalars().all()
+            topics.extend(plan.topic for plan in plans if plan.topic)
+
+        for post in posts:
+            if post.content_plan_id is None and post.content:
+                headline = post.content.strip().split('\n', 1)[0]
+                if headline:
+                    topics.append(headline[:80])
 
         analytics_data = {
             "total_posts": total_posts,
+            "imported_posts": sum(1 for post in posts if post.content_plan_id is None),
             "popular_topics": topics[:5] if topics else [],
             "avg_views": avg_views,
             "total_views": total_views,
             "total_reactions": total_reactions,
-            "total_comments": total_comments
+            "total_comments": total_comments,
+            "post_samples": [post.content[:200] for post in posts if post.content][:5]
         }
 
     report = await utils.generate_report(analytics_data)
@@ -70,6 +80,61 @@ async def report_handler(message: Message):
         await message.answer(report)
     else:
         await message.answer("Не удалось сгенерировать отчет.")
+
+
+@dp.message(Command('import_posts'))
+async def import_posts_handler(message: Message):
+    await message.answer("Начинаю импорт исторических постов. Это может занять немного времени...")
+
+    fetched_messages = await utils.fetch_historical_posts(bot, config.config.CHANNEL_ID)
+    if not fetched_messages:
+        await message.answer("Не удалось получить сообщения или канал пуст.")
+        return
+
+    candidate_messages = [msg for msg in fetched_messages if (msg.text or msg.caption)]
+    if not candidate_messages:
+        await message.answer("Подходящих сообщений для импорта не найдено.")
+        return
+
+    message_ids = [msg.message_id for msg in candidate_messages]
+
+    async with models.async_session() as session:
+        existing_ids: set[int] = set()
+        if message_ids:
+            existing_stmt = await session.execute(
+                models.select(models.Post.message_id).where(
+                    models.Post.channel_id == config.config.CHANNEL_ID,
+                    models.Post.message_id.in_(message_ids)
+                )
+            )
+            existing_ids = set(existing_stmt.scalars().all())
+
+        imported_count = 0
+
+        for msg in candidate_messages:
+            if msg.message_id in existing_ids:
+                continue
+
+            message_date = msg.date
+            if message_date.tzinfo is None:
+                message_date = message_date.replace(tzinfo=pytz.UTC)
+            else:
+                message_date = message_date.astimezone(pytz.UTC)
+
+            post = models.Post(
+                content_plan_id=None,
+                message_id=msg.message_id,
+                channel_id=msg.chat.id if msg.chat else config.config.CHANNEL_ID,
+                published_at=message_date,
+                content=msg.text or msg.caption
+            )
+            session.add(post)
+            imported_count += 1
+
+        if imported_count:
+            await session.commit()
+
+    await message.answer(f"Импорт завершен. Добавлено постов: {imported_count}")
 
 @dp.message(Command('generate_ideas'))
 async def generate_ideas_handler(message: Message):
@@ -212,17 +277,23 @@ async def publish_now(query: CallbackQuery):
         plan = await session.get(models.ContentPlan, plan_id)
         if plan and plan.content:
             try:
-                now = datetime.now(pytz.UTC)
                 # Publish to channel
                 message = await bot.send_message(chat_id=config.config.CHANNEL_ID, text=plan.content)
                 message_id = message.message_id
+
+                published_at = message.date
+                if published_at.tzinfo is None:
+                    published_at = published_at.replace(tzinfo=pytz.UTC)
+                else:
+                    published_at = published_at.astimezone(pytz.UTC)
 
                 # Save to Posts table
                 post = models.Post(
                     content_plan_id=plan.id,
                     message_id=message_id,
                     channel_id=message.chat.id,
-                    published_at=now
+                    published_at=published_at,
+                    content=plan.content
                 )
                 session.add(post)
 
@@ -282,12 +353,19 @@ async def check_and_publish():
                 message = await bot.send_message(chat_id=config.config.CHANNEL_ID, text=plan.content)
                 message_id = message.message_id
 
+                published_at = message.date
+                if published_at.tzinfo is None:
+                    published_at = published_at.replace(tzinfo=pytz.UTC)
+                else:
+                    published_at = published_at.astimezone(pytz.UTC)
+
                 # Save to Posts table
                 post = models.Post(
                     content_plan_id=plan.id,
                     message_id=message_id,
                     channel_id=message.chat.id,
-                    published_at=now
+                    published_at=published_at,
+                    content=plan.content
                 )
                 session.add(post)
 

@@ -1,8 +1,12 @@
+import asyncio
+import logging
 import os
 
 import openai
 
 import config
+from aiogram import Bot
+from aiogram.types import Message
 
 _openrouter_base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 _referer = os.getenv("OPENROUTER_SITE_URL")
@@ -19,6 +23,24 @@ openai_client = openai.OpenAI(
     base_url=_openrouter_base_url,
     default_headers=_default_headers or None,
 )
+
+
+async def fetch_historical_posts(bot: Bot, channel_id: str, limit: int = 1000) -> list[Message]:
+    """
+    Fetches historical posts from the Telegram channel using bot API.
+
+    :param bot: The Bot instance from aiogram
+    :param channel_id: The channel ID or username (e.g., '@username' or integer ID)
+    :param limit: Maximum number of posts to fetch
+    :return: List of messages from the channel (newest first)
+    """
+    try:
+        # get_chat_history returns list of messages, newest first
+        messages = await bot.get_chat_history(chat_id=channel_id, limit=limit)
+        return messages
+    except Exception as e:
+        logging.error(f"Error fetching historical posts: {e}")
+        return []
 
 async def generate_ideas(topic: str, goals: str = "обучающий, развлекающий, вовлекающий") -> list[str]:
     prompt = f"Предложи 10 идей для постов в Telegram-канале на тему '{topic}'. Учти, что цели постов: {goals}. Формат идей: список с кратким описанием каждой идеи."
