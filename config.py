@@ -13,6 +13,6 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'tgbot_user')
     DB_PASSWORD = os.getenv('DB_PASSWORD', 'tgbot_password')
 
-    DATABASE_URL = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    DATABASE_URL = f'postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 
 config = Config()
